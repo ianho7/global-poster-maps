@@ -1,0 +1,35 @@
+# .github/workflows/build-continents.yml
+
+name: Build Global Poster Maps
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_zoom:
+        description: 'Maximum zoom level'
+        default: '15'
+        required: true
+
+jobs:
+  build-asia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      
+      # 使用本地 action（路径相对于仓库根目录）
+      - name: Setup tools
+        uses: ./.github/actions/setup-tools
+      
+      - name: Build Asia PMTiles
+        uses: ./.github/actions/build-pmtiles
+        with:
+          continent: asia
+          region-url: https://download.geofabrik.de/asia-latest.osm.pbf
+          max-zoom: ${{ github.event.inputs.max_zoom || '15' }}
+      
+      - name: Upload to R2
+        uses: ./.github/actions/upload-r2
+        with:
+          file: asia-poster.pmtiles
+          r2-path: continents/

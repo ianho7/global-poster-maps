@@ -1,0 +1,59 @@
+name: 'Build PMTiles'
+description: 'Download OSM data, filter, and build PMTiles'
+
+inputs:
+  continent:
+    required: true
+    description: 'Continent name'
+  region-url:
+    required: true
+    description: 'OSM PBF download URL'
+  max-zoom:
+    required: true
+    default: '15'
+    description: 'Maximum zoom level'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download OSM data
+      shell: bash
+      run: |
+        echo "Downloading ${{ inputs.continent }} data..."
+        wget --progress=dot:giga "${{ inputs.region-url }}" -O ${{ inputs.continent }}.osm.pbf
+        
+    - name: Filter OSM data
+      shell: bash
+      run: |
+        echo "Filtering..."
+        osmium tags-filter \
+          ${{ inputs.continent }}.osm.pbf \
+          w/highway w/natural=water w/waterway w/leisure=park w/leisure=garden \
+          n/amenity n/shop n/tourism n/cafe n/restaurant \
+          -o filtered.pbf
+        rm ${{ inputs.continent }}.osm.pbf
+        
+    - name: Export to GeoJSON
+      shell: bash
+      run: |
+        osmium export filtered.pbf --geometry-types=linestring -o roads.geojson --keep=highway,name
+        osmium export filtered.pbf --geometry-types=polygon -o water.geojson --keep=natural,waterway,name
+        osmium export filtered.pbf --geometry-types=polygon -o parks.geojson --keep=leisure,name
+        osmium export filtered.pbf --geometry-types=point -o pois.geojson --keep=amenity,shop,tourism,name
+        rm filtered.pbf
+        
+    - name: Build PMTiles
+      shell: bash
+      run: |
+        tippecanoe \
+          -o ${{ inputs.continent }}-poster.pmtiles \
+          -Z 0 -z ${{ inputs.max-zoom }} \
+          --drop-densest-as-needed \
+          --simplification=2 \
+          --coalesce-smallest-as-needed \
+          --force \
+          -L "roads:roads.geojson" \
+          -L "water:water.geojson" \
+          -L "parks:parks.geojson" \
+          -L "pois:pois.geojson"
+        rm *.geojson

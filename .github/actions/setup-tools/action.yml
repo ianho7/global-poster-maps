@@ -1,0 +1,38 @@
+name: 'Setup OSM Tools'
+description: 'Install osmium, tippecanoe, and rclone'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential wget curl
+        sudo apt-get install -y libboost-program-options-dev libboost-filesystem-dev libboost-system-dev
+        sudo apt-get install -y libexpat1-dev zlib1g-dev libbz2-dev libproj-dev libgeos-dev
+        
+    - name: Install osmium-tool
+      shell: bash
+      run: |
+        git clone --depth 1 https://github.com/osmcode/osmium-tool.git
+        cd osmium-tool
+        mkdir build && cd build
+        cmake ..
+        make -j$(nproc)
+        sudo make install
+        cd ../.. && rm -rf osmium-tool
+        
+    - name: Install tippecanoe
+      shell: bash
+      run: |
+        git clone --depth 1 https://github.com/felt/tippecanoe.git
+        cd tippecanoe
+        make -j$(nproc)
+        sudo make install
+        cd .. && rm -rf tippecanoe
+        
+    - name: Install rclone
+      shell: bash
+      run: |
+        curl https://rclone.org/install.sh | sudo bash
