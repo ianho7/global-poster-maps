@@ -1,38 +1,37 @@
 name: 'Setup OSM Tools'
-description: 'Install osmium, tippecanoe, and rclone'
+description: 'Install osmium, tippecanoe, and rclone using apt'
 
 runs:
   using: "composite"
   steps:
-    - name: Install dependencies
+    - name: Update apt and install osmium-tool
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential wget curl
-        sudo apt-get install -y libboost-program-options-dev libboost-filesystem-dev libboost-system-dev
-        sudo apt-get install -y libexpat1-dev zlib1g-dev libbz2-dev libproj-dev libgeos-dev
-        
-    - name: Install osmium-tool
-      shell: bash
-      run: |
-        git clone --depth 1 https://github.com/osmcode/osmium-tool.git
-        cd osmium-tool
-        mkdir build && cd build
-        cmake ..
-        make -j$(nproc)
-        sudo make install
-        cd ../.. && rm -rf osmium-tool
+        sudo apt-get install -y osmium-tool
         
     - name: Install tippecanoe
       shell: bash
       run: |
-        git clone --depth 1 https://github.com/felt/tippecanoe.git
-        cd tippecanoe
-        make -j$(nproc)
-        sudo make install
-        cd .. && rm -rf tippecanoe
+        # Ubuntu 22.04+ 有 tippecanoe 包
+        sudo apt-get install -y tippecanoe || (
+          # 如果没有，用源码编译
+          sudo apt-get install -y build-essential libsqlite3-dev zlib1g-dev
+          git clone --depth 1 https://github.com/felt/tippecanoe.git
+          cd tippecanoe
+          make -j$(nproc)
+          sudo make install
+          cd .. && rm -rf tippecanoe
+        )
         
     - name: Install rclone
       shell: bash
       run: |
         curl https://rclone.org/install.sh | sudo bash
+        
+    - name: Verify installations
+      shell: bash
+      run: |
+        osmium --version
+        tippecanoe --version
+        rclone --version
